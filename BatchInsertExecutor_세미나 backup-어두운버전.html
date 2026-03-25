@@ -1,0 +1,1435 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BatchInsertExecutor 딥다이브</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=JetBrains+Mono:wght@300;400;500&family=Noto+Sans+KR:wght@300;400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0c0c0e;
+    --surface: #141418;
+    --surface2: #1c1c22;
+    --border: #2a2a34;
+    --accent: #ff6b35;
+    --accent2: #ffc857;
+    --green: #4ade80;
+    --blue: #60a5fa;
+    --red: #f87171;
+    --muted: #5a5a6e;
+    --text: #e8e8f0;
+    --text2: #9898a8;
+    --code-bg: #10101a;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Noto Sans KR', sans-serif;
+    font-weight: 300;
+    overflow-x: hidden;
+  }
+
+  /* NAV */
+  nav {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    z-index: 100;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 48px;
+    height: 56px;
+    background: rgba(12,12,14,0.92);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--border);
+  }
+  .nav-brand {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    color: var(--accent);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+  .nav-dots {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+  .nav-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--border);
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .nav-dot.active { background: var(--accent); transform: scale(1.4); }
+  .slide-counter {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    color: var(--muted);
+  }
+
+  /* SLIDES */
+  .slide {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding: 80px 10vw;
+    border-bottom: 1px solid var(--border);
+    position: relative;
+    opacity: 0;
+    transform: translateY(24px);
+    transition: opacity 0.7s ease, transform 0.7s ease;
+  }
+  .slide.visible { opacity: 1; transform: translateY(0); }
+
+  /* SLIDE 1 — TITLE */
+  #s1 {
+    padding: 80px 10vw;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    position: relative;
+    overflow: hidden;
+    border-bottom: 1px solid var(--border);
+    opacity: 0;
+    transform: translateY(24px);
+    transition: opacity 0.7s ease, transform 0.7s ease;
+  }
+  #s1.visible { opacity: 1; transform: translateY(0); }
+  #s1::before {
+    content: '';
+    position: absolute;
+    top: -200px; right: -200px;
+    width: 600px; height: 600px;
+    background: radial-gradient(circle, rgba(255,107,53,0.08) 0%, transparent 70%);
+    pointer-events: none;
+  }
+  #s1::after {
+    content: 'BATCH\AINSERT\AEXECUTOR';
+    white-space: pre;
+    position: absolute;
+    right: 8vw;
+    top: 50%;
+    transform: translateY(-50%);
+    font-family: 'Syne', sans-serif;
+    font-weight: 800;
+    font-size: clamp(60px, 9vw, 130px);
+    line-height: 0.9;
+    color: transparent;
+    -webkit-text-stroke: 1px rgba(255,107,53,0.12);
+    pointer-events: none;
+    letter-spacing: -0.02em;
+  }
+
+  .tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--accent);
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    margin-bottom: 24px;
+  }
+  .tag::before {
+    content: '';
+    display: inline-block;
+    width: 24px; height: 1px;
+    background: var(--accent);
+  }
+
+  h1.title {
+    font-family: 'Syne', sans-serif;
+    font-weight: 800;
+    font-size: clamp(36px, 5vw, 72px);
+    line-height: 1.05;
+    letter-spacing: -0.03em;
+    color: var(--text);
+    margin-bottom: 24px;
+    max-width: 700px;
+  }
+  h1.title span { color: var(--accent); }
+
+  .subtitle {
+    font-size: 16px;
+    color: var(--text2);
+    line-height: 1.7;
+    max-width: 520px;
+    margin-bottom: 48px;
+  }
+
+  .meta-row {
+    display: flex;
+    gap: 32px;
+    flex-wrap: wrap;
+  }
+  .meta-item {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .meta-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+  }
+  .meta-value {
+    font-size: 14px;
+    color: var(--text2);
+    font-weight: 500;
+  }
+
+  /* SLIDE HEADINGS */
+  .slide-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--muted);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    margin-bottom: 20px;
+  }
+  .slide-tag .num {
+    color: var(--accent);
+    font-size: 13px;
+  }
+
+  h2 {
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+    font-size: clamp(28px, 3.5vw, 52px);
+    line-height: 1.1;
+    letter-spacing: -0.02em;
+    margin-bottom: 40px;
+  }
+  h2 .accent { color: var(--accent); }
+  h2 .dim { color: var(--muted); }
+
+  h3 {
+    font-family: 'Syne', sans-serif;
+    font-weight: 600;
+    font-size: 20px;
+    margin-bottom: 12px;
+    color: var(--text);
+  }
+
+  p {
+    font-size: 15px;
+    line-height: 1.8;
+    color: var(--text2);
+  }
+
+  /* GRID LAYOUTS */
+  .two-col {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+  }
+  .three-col {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 20px;
+  }
+  @media (max-width: 900px) {
+    .two-col, .three-col { grid-template-columns: 1fr; }
+  }
+
+  /* CARDS */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 28px;
+    position: relative;
+    overflow: hidden;
+  }
+  .card.accent-top::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    background: var(--accent);
+  }
+  .card.blue-top::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    background: var(--blue);
+  }
+  .card.green-top::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    background: var(--green);
+  }
+  .card.red-top::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    background: var(--red);
+  }
+
+  /* CODE BLOCKS */
+  .code-block {
+    background: var(--code-bg);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 24px 28px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    line-height: 1.6;
+    overflow-x: auto;
+    position: relative;
+    white-space: pre-wrap;
+    word-break: keep-all;
+    overflow-wrap: normal;
+    tab-size: 2;
+  }
+  .code-block::before {
+    content: attr(data-lang);
+    position: absolute;
+    top: 10px; right: 16px;
+    font-size: 10px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+  .kw { color: #c792ea; }
+  .fn { color: #82aaff; }
+  .str { color: #c3e88d; }
+  .cm { color: var(--muted); font-style: italic; }
+  .hl {
+    background: rgba(255,107,53,0.15);
+    display: inline;
+    margin: 0;
+    padding: 0 3px;
+    border-left: none;
+    border-radius: 3px;
+  }
+  .num-lit { color: var(--accent2); }
+
+  /* FLOW DIAGRAM */
+  .flow {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    padding: 8px 0;
+  }
+  .flow-step {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+  }
+  .flow-box {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 18px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    text-align: center;
+    white-space: nowrap;
+    color: var(--text2);
+    transition: border-color 0.2s;
+  }
+  .flow-box.accent {
+    border-color: var(--accent);
+    color: var(--accent);
+    background: rgba(255,107,53,0.08);
+  }
+  .flow-box.green {
+    border-color: var(--green);
+    color: var(--green);
+    background: rgba(74,222,128,0.08);
+  }
+  .flow-box.blue {
+    border-color: var(--blue);
+    color: var(--blue);
+    background: rgba(96,165,250,0.08);
+  }
+  .flow-label {
+    font-size: 10px;
+    color: var(--muted);
+    text-align: center;
+    max-width: 100px;
+  }
+  .flow-arrow {
+    font-size: 18px;
+    color: var(--muted);
+    flex-shrink: 0;
+    padding: 0 6px;
+    padding-bottom: 24px;
+  }
+
+  /* COMPARE TABLE */
+  .compare-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+  }
+  .compare-table th, .compare-table td {
+    padding: 14px 24px;
+    text-align: left;
+    font-size: 14px;
+    border-bottom: 1px solid var(--border);
+  }
+  .compare-table th {
+    background: var(--surface2);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text2);
+    font-weight: 400;
+  }
+  .compare-table td { background: var(--surface); color: var(--text2); }
+  .compare-table tr:last-child td { border-bottom: none; }
+  .compare-table td.label { color: var(--text); font-weight: 500; }
+  .compare-table td code {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    background: var(--code-bg);
+    padding: 2px 8px;
+    border-radius: 4px;
+    color: var(--blue);
+  }
+  .compare-table .badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 2px 10px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 500;
+  }
+  .badge-orange { background: rgba(255,107,53,0.15); color: var(--accent); }
+  .badge-blue { background: rgba(96,165,250,0.12); color: var(--blue); }
+  .badge-red { background: rgba(248,113,113,0.12); color: var(--red); }
+  .badge-green { background: rgba(74,222,128,0.12); color: var(--green); }
+
+  /* STAT CARDS */
+  .stat-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 32px 28px;
+    text-align: center;
+  }
+  .stat-num {
+    font-family: 'Syne', sans-serif;
+    font-weight: 800;
+    font-size: 52px;
+    line-height: 1;
+    margin-bottom: 8px;
+    letter-spacing: -0.03em;
+  }
+  .stat-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+  }
+  .stat-sub {
+    font-size: 13px;
+    color: var(--text2);
+    margin-top: 8px;
+  }
+
+  /* PROCESS STEPS */
+  .process {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+  }
+  .process-item {
+    display: flex;
+    gap: 20px;
+    align-items: flex-start;
+    padding: 20px 0;
+    border-bottom: 1px solid var(--border);
+    position: relative;
+  }
+  .process-item:last-child { border-bottom: none; }
+  .process-num {
+    font-family: 'Syne', sans-serif;
+    font-weight: 800;
+    font-size: 28px;
+    color: var(--border);
+    min-width: 36px;
+    line-height: 1.2;
+  }
+  .process-item.active .process-num { color: var(--accent); }
+  .process-item.active .process-body h4 { color: var(--text); }
+  .process-body { flex: 1; }
+  .process-body h4 {
+    font-size: 15px;
+    font-weight: 500;
+    color: var(--text2);
+    margin-bottom: 4px;
+  }
+  .process-body p { font-size: 13px; color: var(--muted); line-height: 1.6; }
+  .process-badge {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    padding: 2px 8px;
+    border-radius: 3px;
+    border: 1px solid var(--border);
+    color: var(--muted);
+    white-space: nowrap;
+    margin-top: 4px;
+    display: inline-block;
+  }
+
+  /* KEY MESSAGES */
+  .key-message {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--accent);
+    border-radius: 0 8px 8px 0;
+    padding: 16px 20px;
+    margin-bottom: 12px;
+    font-size: 14px;
+    color: var(--text2);
+    line-height: 1.7;
+  }
+  .key-message strong { color: var(--text); }
+
+  /* PHOTO PLACEHOLDER */
+  .photo-placeholder {
+    background: var(--surface);
+    border: 1.5px dashed var(--border);
+    border-radius: 12px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    padding: 40px 24px;
+    min-height: 180px;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+  }
+  .photo-placeholder::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: repeating-linear-gradient(
+      -45deg,
+      transparent,
+      transparent 8px,
+      rgba(255,255,255,0.01) 8px,
+      rgba(255,255,255,0.01) 16px
+    );
+  }
+  .photo-placeholder .ph-icon {
+    font-size: 32px;
+    opacity: 0.4;
+  }
+  .photo-placeholder .ph-title {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    color: var(--accent);
+    letter-spacing: 0.08em;
+    font-weight: 500;
+  }
+  .photo-placeholder .ph-desc {
+    font-size: 12px;
+    color: var(--muted);
+    line-height: 1.6;
+    max-width: 300px;
+  }
+  .photo-shot {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+  }
+  .photo-shot img {
+    display: block;
+    width: 100%;
+    height: auto;
+    background: #0a0a0d;
+  }
+  .photo-shot .caption {
+    padding: 14px 16px;
+    border-top: 1px solid var(--border);
+  }
+  .photo-shot .caption-title {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--accent);
+    letter-spacing: 0.08em;
+    margin-bottom: 6px;
+  }
+  .photo-shot .caption-desc {
+    font-size: 12px;
+    color: var(--text2);
+    line-height: 1.6;
+  }
+  .rule-stack {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+  .rule-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+  .rule-note {
+    background: rgba(255,200,87,0.06);
+    border: 1px solid rgba(255,200,87,0.18);
+    border-radius: 10px;
+    padding: 14px 16px;
+    font-size: 12px;
+    color: var(--text2);
+    line-height: 1.7;
+  }
+  .asset-showcase {
+    margin-top: 24px;
+  }
+
+  /* INLINE CODE */
+  code {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12.5px;
+    background: rgba(96,165,250,0.1);
+    color: var(--blue);
+    padding: 2px 7px;
+    border-radius: 4px;
+  }
+
+  /* DIVIDER */
+  .divider {
+    width: 48px;
+    height: 2px;
+    background: var(--accent);
+    margin: 20px 0;
+  }
+
+  /* LIST */
+  ul.styled {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 0;
+  }
+  ul.styled li {
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+    font-size: 14px;
+    color: var(--text2);
+    line-height: 1.7;
+  }
+  ul.styled li::before {
+    content: '→';
+    color: var(--accent);
+    flex-shrink: 0;
+    margin-top: 1px;
+    font-size: 13px;
+  }
+  ul.styled li strong { color: var(--text); }
+
+  /* FOOTER */
+  footer {
+    padding: 40px 10vw;
+    border-top: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  footer span {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--muted);
+  }
+
+  /* SCROLL CUE */
+  .scroll-cue {
+    position: absolute;
+    bottom: 32px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    opacity: 0.3;
+  }
+  .scroll-cue span {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    color: var(--muted);
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+  }
+  .scroll-cue-line {
+    width: 1px;
+    height: 32px;
+    background: var(--muted);
+    animation: scrollLine 1.6s ease-in-out infinite;
+  }
+  @keyframes scrollLine {
+    0% { transform: scaleY(0); transform-origin: top; }
+    50% { transform: scaleY(1); transform-origin: top; }
+    50.01% { transform: scaleY(1); transform-origin: bottom; }
+    100% { transform: scaleY(0); transform-origin: bottom; }
+  }
+
+  /* MEMORY BAR */
+  .mem-bar-wrap { margin-bottom: 16px; }
+  .mem-bar-label {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 6px;
+  }
+  .mem-bar-name {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    color: var(--text2);
+  }
+  .mem-bar-val {
+    font-family: 'Syne', monospace;
+    font-size: 14px;
+    font-weight: 700;
+  }
+  .mem-bar-track {
+    height: 8px;
+    background: var(--surface2);
+    border-radius: 100px;
+    overflow: hidden;
+  }
+  .mem-bar-fill {
+    height: 100%;
+    border-radius: 100px;
+    width: 0;
+    transition: width 1.2s cubic-bezier(0.23, 1, 0.32, 1);
+  }
+
+  /* CHUNK DIAGRAM */
+  .chunk-row {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 8px;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+  .chunk-block {
+    width: 44px;
+    height: 36px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    color: var(--muted);
+    flex-shrink: 0;
+    transition: all 0.2s;
+  }
+  .chunk-block.session {
+    border-color: var(--accent);
+    color: var(--accent);
+    background: rgba(255,107,53,0.07);
+  }
+  .chunk-block.flushed {
+    border-color: var(--green);
+    color: var(--green);
+    background: rgba(74,222,128,0.07);
+  }
+  .chunk-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    color: var(--muted);
+    min-width: 80px;
+    flex-shrink: 0;
+  }
+
+  /* CONCLUSION LARGE TEXT */
+  .conclusion-text {
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+    font-size: clamp(18px, 2.2vw, 28px);
+    line-height: 1.5;
+    color: var(--text);
+    border-left: 3px solid var(--accent);
+    padding-left: 24px;
+    margin: 20px 0;
+  }
+  .conclusion-text span { color: var(--accent); }
+</style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+  <div class="nav-brand">BatchInsertExecutor / DeepDive</div>
+  <div class="nav-dots" id="navDots"></div>
+  <div class="slide-counter" id="slideCounter">01 / 09</div>
+</nav>
+
+<!-- ===== SLIDE 1: TITLE ===== -->
+<section class="slide" id="s1" data-slide="1">
+  <div class="tag">분기 기술공유 세미나</div>
+  <h1 class="title">MyBatis<br><span>BatchInsertExecutor</span><br>딥다이브</h1>
+  <p class="subtitle">
+    단순 성능개선 결과 공유가 아닌,<br>
+    문제를 어떻게 해부하고 어떤 근거로 검증했는지까지 추적합니다.
+  </p>
+  <div class="meta-row">
+    <div class="meta-item">
+      <span class="meta-label">대상</span>
+      <span class="meta-value">개발팀 전체</span>
+    </div>
+    <div class="meta-item">
+      <span class="meta-label">핵심 라이브러리</span>
+      <span class="meta-value">MyBatis 3.5.17</span>
+    </div>
+    <div class="meta-item">
+      <span class="meta-label">분석 기준</span>
+      <span class="meta-value">바이트코드 실측</span>
+    </div>
+  </div>
+  <div class="scroll-cue">
+    <span>scroll</span>
+    <div class="scroll-cue-line"></div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 2: 문제 정의 ===== -->
+<section class="slide" id="s2" data-slide="2">
+  <div class="slide-tag"><span class="num">01</span> 문제 정의</div>
+  <h2>OOM의 진짜 <span class="accent">원인</span>은<br><span class="dim">무엇인가</span></h2>
+
+  <div class="two-col">
+    <div>
+      <div class="card red-top" style="margin-bottom:16px">
+        <h3 style="color:var(--red); margin-bottom:12px">❌ 잘못된 가설</h3>
+        <p style="font-size:14px; margin-bottom:12px">"엑셀 row 수가 많아서 OOM이 난다"</p>
+        <p style="font-size:13px">대부분의 첫 번째 생각. chunking이 이미 들어가 있어서 "chunk로 잘랐으니 안전하다"고 착각하기 쉽다.</p>
+      </div>
+
+      <div class="card green-top">
+        <h3 style="color:var(--green); margin-bottom:12px">✓ 실제 원인</h3>
+        <p style="font-size:14px; margin-bottom:12px">"MyBatis가 배치 중간 상태를 메모리에 얼마나 오래 붙잡고 있느냐"</p>
+        <p style="font-size:13px">SIMPLE 모드에서 chunk로 잘라도, 각 chunk의 SQL payload가 크면 순간 피크 메모리는 여전히 높다.</p>
+      </div>
+    </div>
+
+    <div>
+      <div style="margin-bottom:16px">
+        <div class="slide-tag" style="margin-bottom:12px">실제로 검증해야 할 질문</div>
+        <ul class="styled">
+          <li>메모리를 가장 오래 점유한 객체는 무엇인가</li>
+          <li><code>SIMPLE</code>과 <code>BATCH</code>의 메모리 차이는 어디서 발생하는가</li>
+          <li><code>flushStatements()</code>를 언제 호출해야 피크가 줄어드는가</li>
+          <li><code>useGeneratedKeys</code>가 왜 설계를 제한하는가</li>
+        </ul>
+      </div>
+
+      <div class="card" style="background:rgba(255,107,53,0.05); border-color:rgba(255,107,53,0.2)">
+        <div style="font-family:'JetBrains Mono',monospace; font-size:11px; color:var(--accent); margin-bottom:8px; letter-spacing:0.08em;">📸 SCREENSHOT GUIDE #1</div>
+        <div style="font-size:13px; color:var(--text2); line-height:1.7">
+          <strong style="color:var(--text)">실제 활용 예시 이미지 삽입</strong><br>
+          아래 이미지를 사용합니다. 필요하면 발표 직전에 OOM 로그 화면으로 교체해도 됩니다.
+        </div>
+        <div class="photo-shot" style="margin-top:14px">
+          <img src="./Batch-Insert-Executor-실제-활용.png" alt="Batch Insert Executor 실제 활용 화면">
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 3: 코드 구조 해부 ===== -->
+<section class="slide" id="s3" data-slide="3">
+  <div class="slide-tag"><span class="num">02</span> 코드 구조 해부</div>
+  <h2><span class="accent">BatchInsertExecutor</span><br>핵심 흐름</h2>
+
+  <div class="two-col">
+    <div>
+      <div class="code-block" data-lang="Java" style="margin-bottom:16px">
+<span class="kw">ExecutorType</span> executorType =
+  useGeneratedKeys
+    ? <span class="hl"><span class="kw">ExecutorType</span>.<span class="fn">SIMPLE</span>  <span class="cm">// generated key 필요</span></span>
+    : <span class="hl"><span class="kw">ExecutorType</span>.<span class="fn">BATCH</span>;  <span class="cm">// 대량 insert 효율</span></span>
+
+<span class="kw">List</span>&lt;<span class="kw">List</span>&lt;T&gt;&gt; batches = chunked(items, batchSize);
+
+<span class="kw">for</span> (<span class="kw">List</span>&lt;T&gt; batch : batches) {
+  <span class="kw">try</span> (<span class="kw">SqlSession</span> s = factory.<span class="fn">openSession</span>(executorType)) {
+    M mapper = s.<span class="fn">getMapper</span>(mapperClass);
+    insertFn.<span class="fn">accept</span>(mapper, batch);
+
+    <span class="kw">if</span> (executorType == <span class="kw">ExecutorType</span>.BATCH) {
+      <span class="hl">s.<span class="fn">flushStatements</span>();  <span class="cm">// batch 버퍼 실행</span></span>
+      <span class="hl">s.<span class="fn">clearCache</span>();       <span class="cm">// local cache 정리</span></span>
+    }
+  } <span class="cm">// auto close</span>
+}
+      </div>
+
+      <div style="display:flex; flex-direction:column; gap:8px">
+        <div class="key-message"><strong>포인트 1:</strong> <code>ExecutorType</code>을 런타임에 결정한다</div>
+        <div class="key-message"><strong>포인트 2:</strong> chunk마다 <code>SqlSession</code>을 새로 열고 닫는다</div>
+        <div class="key-message"><strong>포인트 3:</strong> <code>BATCH</code>에서만 flush + clear를 묶는다</div>
+      </div>
+    </div>
+
+    <div>
+      <div style="margin-bottom:16px">
+        <div class="slide-tag" style="margin-bottom:12px">세션 생명주기 흐름</div>
+        <div class="flow" style="flex-direction:column; align-items:stretch; gap:0">
+          <div style="display:flex; align-items:center; gap:12px; padding:12px 0; border-bottom:1px solid var(--border)">
+            <div class="flow-box accent" style="min-width:160px">openSession(BATCH)</div>
+            <div style="font-size:12px; color:var(--text2); flex:1">Executor 생성<br><span style="font-size:11px;color:var(--muted)">BatchExecutor 주입</span></div>
+          </div>
+          <div style="display:flex; align-items:center; gap:12px; padding:12px 0; border-bottom:1px solid var(--border)">
+            <div class="flow-box" style="min-width:160px">mapper.insert(...)</div>
+            <div style="font-size:12px; color:var(--text2); flex:1">doUpdate() 호출<br><span style="font-size:11px;color:var(--muted)">→ statement/param 누적 시작</span></div>
+          </div>
+          <div style="display:flex; align-items:center; gap:12px; padding:12px 0; border-bottom:1px solid var(--border)">
+            <div class="flow-box accent" style="min-width:160px">flushStatements()</div>
+            <div style="font-size:12px; color:var(--text2); flex:1">executeBatch() 실행<br><span style="font-size:11px;color:var(--muted)">→ stmt close + 리스트 clear</span></div>
+          </div>
+          <div style="display:flex; align-items:center; gap:12px; padding:12px 0; border-bottom:1px solid var(--border)">
+            <div class="flow-box" style="min-width:160px">clearCache()</div>
+            <div style="font-size:12px; color:var(--text2); flex:1">localCache 비우기<br><span style="font-size:11px;color:var(--muted)">보조 정리</span></div>
+          </div>
+          <div style="display:flex; align-items:center; gap:12px; padding:12px 0">
+            <div class="flow-box green" style="min-width:160px">session.close()</div>
+            <div style="font-size:12px; color:var(--text2); flex:1">세션 상태 완전 종료<br><span style="font-size:11px;color:var(--muted)">→ deferred loads, cache null</span></div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 4: BatchExecutor 내부동작 ===== -->
+<section class="slide" id="s4" data-slide="4">
+  <div class="slide-tag"><span class="num">03</span> BatchExecutor 내부</div>
+  <h2>누적의 시작점은<br><span class="accent">doUpdate()</span>다</h2>
+
+  <div class="two-col">
+    <div>
+      <div style="margin-bottom:16px; font-size:13px; color:var(--text2); line-height:1.8; background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:20px">
+        <strong style="color:var(--text); display:block; margin-bottom:8px">⚠️ 흔한 오해</strong>
+        "<code>flushStatements()</code>에서부터 batch가 시작된다"<br>
+        <span style="color:var(--red)">→ 틀렸다.</span> 누적은 <code>mapper.insert()</code> 호출 시점, 즉 <code>BatchExecutor.doUpdate()</code>에서 이미 시작된다.
+      </div>
+
+      <div class="code-block" data-lang="BatchExecutor.java">
+<span class="kw">public int</span> <span class="fn">doUpdate</span>(MappedStatement ms, Object param) {
+  StatementHandler handler = <span class="fn">newStatementHandler</span>(...);
+  String sql = handler.<span class="fn">getBoundSql</span>().<span class="fn">getSql</span>();
+
+  <span class="kw">if</span> (sql.<span class="fn">equals</span>(currentSql)) {
+    <span class="cm">// 같은 SQL → 기존 Statement 재사용</span>
+    <span class="hl">batchResult.<span class="fn">addParameterObject</span>(param); <span class="cm">// 누적!</span></span>
+  } <span class="kw">else</span> {
+    <span class="cm">// 다른 SQL → 새 Statement 생성</span>
+    statementList.<span class="fn">add</span>(stmt);
+    batchResultList.<span class="fn">add</span>(<span class="kw">new</span> <span class="fn">BatchResult</span>(ms, sql));
+  }
+  <span class="hl">handler.<span class="fn">batch</span>(stmt); <span class="cm">// JDBC batch 등록 (아직 DB X)</span></span>
+  <span class="kw">return</span> BATCH_UPDATE_RETURN_VALUE;
+}
+      </div>
+    </div>
+
+    <div>
+      <div style="margin-bottom:16px">
+        <div class="slide-tag" style="margin-bottom:8px">BatchExecutor가 보유하는 상태</div>
+        <div style="display:flex; flex-direction:column; gap:8px">
+          <div style="display:flex; gap:12px; align-items:center; padding:12px; background:var(--surface); border:1px solid var(--border); border-radius:8px">
+            <div style="width:8px; height:8px; border-radius:50%; background:var(--accent); flex-shrink:0"></div>
+            <div>
+              <div style="font-family:'JetBrains Mono',monospace; font-size:12px; color:var(--accent)">statementList</div>
+              <div style="font-size:12px; color:var(--muted); margin-top:2px">JDBC Statement 목록</div>
+            </div>
+          </div>
+          <div style="display:flex; gap:12px; align-items:center; padding:12px; background:var(--surface); border:1px solid var(--border); border-radius:8px">
+            <div style="width:8px; height:8px; border-radius:50%; background:var(--accent); flex-shrink:0"></div>
+            <div>
+              <div style="font-family:'JetBrains Mono',monospace; font-size:12px; color:var(--accent)">batchResultList</div>
+              <div style="font-size:12px; color:var(--muted); margin-top:2px">row별 parameter 객체 참조 누적</div>
+            </div>
+          </div>
+          <div style="display:flex; gap:12px; align-items:center; padding:12px; background:var(--surface); border:1px solid var(--border); border-radius:8px">
+            <div style="width:8px; height:8px; border-radius:50%; background:var(--muted); flex-shrink:0"></div>
+            <div>
+              <div style="font-family:'JetBrains Mono',monospace; font-size:12px; color:var(--text2)">currentSql / currentStatement</div>
+              <div style="font-size:12px; color:var(--muted); margin-top:2px">SQL 비교용 상태</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card" style="background:rgba(255,200,87,0.05); border-color:rgba(255,200,87,0.2)">
+        <div style="font-size:13px; color:var(--text2); line-height:1.8">
+          <strong style="color:var(--accent2)">메모리 피크의 핵심</strong><br>
+          row 수가 커질수록 세션 안에 아래가 동시에 쌓인다:<br>
+          • flush 전 JDBC statement<br>
+          • row별 parameter object 참조<br>
+          • SQL 템플릿 + key generator 처리 정보
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 5: flushStatements / clearCache / close ===== -->
+<section class="slide" id="s5" data-slide="5">
+  <div class="slide-tag"><span class="num">04</span> API 역할 분리</div>
+  <h2><code style="font-size:0.6em">flush</code> · <code style="font-size:0.6em">clearCache</code> · <code style="font-size:0.6em">close</code><br><span class="accent">역할이 다르다</span></h2>
+
+  <div class="three-col" style="margin-bottom:32px">
+    <div class="card accent-top">
+      <h3 style="color:var(--accent); font-size:16px; margin-bottom:16px">flushStatements()</h3>
+      <ul class="styled" style="margin-bottom:16px">
+        <li>Statement.executeBatch() 실행</li>
+        <li>generated key 후처리</li>
+        <li>statement.close()</li>
+        <li style="color:var(--text)"><strong>statementList.clear()</strong></li>
+        <li style="color:var(--text)"><strong>batchResultList.clear()</strong></li>
+      </ul>
+      <div style="font-size:12px; color:var(--muted); padding-top:12px; border-top:1px solid var(--border)">
+        ⚠️ commit이 아님. 트랜잭션 확정은 별도.
+      </div>
+    </div>
+
+    <div class="card blue-top">
+      <h3 style="color:var(--blue); font-size:16px; margin-bottom:16px">clearCache()</h3>
+      <ul class="styled" style="margin-bottom:16px">
+        <li>localCache.clear()</li>
+        <li>localOutputParameterCache.clear()</li>
+      </ul>
+      <div style="font-size:12px; color:var(--muted); padding-top:12px; border-top:1px solid var(--border)">
+        batch statement 버퍼를 직접 비우지 않음.<br>
+        BATCH 메모리 핵심은 flushStatements().
+      </div>
+    </div>
+
+    <div class="card green-top">
+      <h3 style="color:var(--green); font-size:16px; margin-bottom:16px">session.close()</h3>
+      <ul class="styled" style="margin-bottom:16px">
+        <li>transaction.close()</li>
+        <li>deferredLoads = null</li>
+        <li>localCache = null</li>
+        <li style="color:var(--text)"><strong>세션 생명주기 완전 종료</strong></li>
+      </ul>
+      <div style="font-size:12px; color:var(--muted); padding-top:12px; border-top:1px solid var(--border)">
+        try-with-resources를 쓰는 이유.
+      </div>
+    </div>
+  </div>
+
+  <div class="two-col" style="margin-bottom:24px">
+    <div class="code-block" data-lang="BatchExecutor.java">
+<span class="kw">@Override</span>
+<span class="kw">public</span> <span class="kw">List</span>&lt;BatchResult&gt; <span class="fn">doFlushStatements</span>(<span class="kw">boolean</span> isRollback)
+    <span class="kw">throws</span> SQLException {
+  <span class="cm">// executeBatch → key 처리 → closeStatement → 리스트 clear</span>
+  ...
+  stmt.<span class="fn">executeBatch</span>();
+  closeStatement(stmt);
+  currentSql = <span class="kw">null</span>;
+  statementList.<span class="fn">clear</span>();
+  batchResultList.<span class="fn">clear</span>();
+}
+    </div>
+    <div class="code-block" data-lang="SimpleExecutor.java">
+<span class="kw">@Override</span>
+<span class="kw">public</span> <span class="kw">List</span>&lt;BatchResult&gt; <span class="fn">doFlushStatements</span>(<span class="kw">boolean</span> isRollback) {
+  <span class="kw">return</span> Collections.<span class="fn">emptyList</span>();
+}
+    </div>
+  </div>
+
+  <div style="background:var(--surface2); border:1px solid var(--border); border-radius:10px; padding:20px 28px">
+    <div style="font-family:'JetBrains Mono',monospace; font-size:11px; color:var(--muted); margin-bottom:12px; text-transform:uppercase; letter-spacing:0.08em;">execute vs commit — 자주 헷갈리는 포인트</div>
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:24px">
+      <div>
+        <div style="font-family:'JetBrains Mono',monospace; font-size:13px; color:var(--blue); margin-bottom:6px">execute</div>
+        <div style="font-size:13px; color:var(--text2); line-height:1.7">SQL을 JDBC/DB에 보내<br>실제 insert/update를 수행하는 시점</div>
+      </div>
+      <div>
+        <div style="font-family:'JetBrains Mono',monospace; font-size:13px; color:var(--green); margin-bottom:6px">commit</div>
+        <div style="font-size:13px; color:var(--text2); line-height:1.7">이미 실행된 변경 내용을<br>최종 확정하는 시점</div>
+      </div>
+    </div>
+    <div style="margin-top:12px; padding-top:12px; border-top:1px solid var(--border); font-size:13px; color:var(--text2)">
+      → 하나의 트랜잭션 안에서도 SQL은 여러 번 실행될 수 있고, commit은 마지막에 한 번만 일어날 수 있다.
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 6: SIMPLE vs BATCH 비교 ===== -->
+<section class="slide" id="s6" data-slide="6">
+  <div class="slide-tag"><span class="num">05</span> 전략 비교</div>
+  <h2><span class="dim">SIMPLE</span> vs <span class="accent">BATCH</span></h2>
+
+  <div class="two-col" style="margin-bottom:32px">
+    <div>
+      <table class="compare-table">
+        <thead>
+          <tr>
+            <th>구분</th>
+            <th>SIMPLE</th>
+            <th>BATCH</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="label">SQL 실행 시점</td>
+            <td>mapper 호출 즉시</td>
+            <td>flushStatements() 시점</td>
+          </tr>
+          <tr>
+            <td class="label">메모리 위험</td>
+            <td><span class="badge badge-red">단일 SQL payload 피크</span></td>
+            <td><span class="badge badge-orange">누적 buffer 피크</span></td>
+          </tr>
+          <tr>
+            <td class="label">flushStatements()</td>
+            <td>no-op (emptyList 반환)</td>
+            <td>핵심 정리 포인트</td>
+          </tr>
+          <tr>
+            <td class="label">useGeneratedKeys</td>
+            <td><span class="badge badge-green">지원</span></td>
+            <td><span class="badge badge-orange">제약 있음</span></td>
+          </tr>
+          <tr>
+            <td class="label">OOM 한계 결정 요인</td>
+            <td>총 row 수</td>
+            <td>chunkSize × payload</td>
+          </tr>
+          <tr>
+            <td class="label">현재 코드 분기</td>
+            <td>주문 헤더 insert</td>
+            <td>주문 아이템 insert</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div>
+      <div style="margin-bottom:20px">
+        <div class="slide-tag" style="margin-bottom:12px">30,000건 기준 실측 비교</div>
+        <div class="mem-bar-wrap">
+          <div class="mem-bar-label">
+            <span class="mem-bar-name">ExecutorType.SIMPLE</span>
+            <span class="mem-bar-val" style="color:var(--red)">~3.4 GB</span>
+          </div>
+          <div class="mem-bar-track">
+            <div class="mem-bar-fill" id="barSimple" style="background:var(--red); width:0"></div>
+          </div>
+        </div>
+        <div class="mem-bar-wrap">
+          <div class="mem-bar-label">
+            <span class="mem-bar-name">ExecutorType.BATCH</span>
+            <span class="mem-bar-val" style="color:var(--green)">~390 MB</span>
+          </div>
+          <div class="mem-bar-track">
+            <div class="mem-bar-fill" id="barBatch" style="background:var(--green); width:0"></div>
+          </div>
+        </div>
+
+        <div style="margin-top:16px; padding:14px; background:var(--surface); border:1px solid var(--border); border-radius:8px; font-size:12px; color:var(--muted)">
+          ※ 현재 SQL shape(AES_ENCRYPT, foreach multi-row) 기준 추정치. JVM heap 설정에 따라 달라질 수 있음.
+        </div>
+      </div>
+
+      <div style="padding:16px; background:rgba(255,107,53,0.05); border:1px solid rgba(255,107,53,0.2); border-radius:10px">
+        <div style="font-size:13px; color:var(--text2); line-height:1.8">
+          <strong style="color:var(--text)">-Xmx=1024MB 기준 추정 안전 건수</strong><br>
+          SIMPLE: <span style="color:var(--red)">약 6,000건</span> (116KB/row)<br>
+          BATCH: <span style="color:var(--green)">약 55,000건</span> (13KB/row)<br>
+          <span style="font-size:11px; color:var(--muted)">→ 같은 30,000건이라도 결과가 다른 이유</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 7: 현재 mapper가 무거운 이유 ===== -->
+<section class="slide" id="s7" data-slide="7">
+  <div class="slide-tag"><span class="num">06</span> 현재 Mapper 분석</div>
+  <h2>왜 이 mapper가<br><span class="accent">특히 무거운가</span></h2>
+
+  <div class="two-col">
+    <div>
+      <div style="margin-bottom:16px; font-size:13px; color:var(--muted); font-family:'JetBrains Mono',monospace; text-transform:uppercase; letter-spacing:0.08em">ExcelOrderCustomerMapper.xml — insertExcelOrdersBatch</div>
+      <div class="code-block" data-lang="MyBatis XML" style="margin-bottom:16px">
+<span class="cm">&lt;!-- 세 가지 무거운 요소가 동시에 존재 --&gt;</span>
+&lt;insert <span class="hl"><span class="str">useGeneratedKeys="true"</span></span>
+  keyProperty=<span class="str">"id"</span>&gt;
+  INSERT INTO order_customer
+  VALUES
+  <span class="hl">&lt;foreach collection="list" ...&gt;</span>
+    (
+      AES_ENCRYPT(#{buyer_name}, ...),
+      AES_ENCRYPT(#{receiver_name}, ...),
+      AES_ENCRYPT(#{tel1}, ...),
+      AES_ENCRYPT(#{tel2}, ...),
+      AES_ENCRYPT(#{zipcode}, ...),
+      AES_ENCRYPT(#{shipping_address1}, ...),
+      AES_ENCRYPT(#{shipping_address2}, ...)
+    )
+  &lt;/foreach&gt;
+&lt;/insert&gt;
+      </div>
+    </div>
+
+    <div>
+      <div class="slide-tag" style="margin-bottom:16px">무거운 3가지 이유</div>
+      <div class="process">
+        <div class="process-item active">
+          <div class="process-num">01</div>
+          <div class="process-body">
+            <h4>useGeneratedKeys = true</h4>
+            <p>generated key 후처리 비용이 추가된다. SIMPLE만 사용 가능한 경로를 강제한다.</p>
+          </div>
+        </div>
+        <div class="process-item active">
+          <div class="process-num">02</div>
+          <div class="process-body">
+            <h4>&lt;foreach&gt; multi-row insert</h4>
+            <p>row 수에 비례해 SQL 문자열이 커진다. SIMPLE에서 단일 실행 payload 피크가 직접 증가한다.</p>
+          </div>
+        </div>
+        <div class="process-item active">
+          <div class="process-num">03</div>
+          <div class="process-body">
+            <h4>AES_ENCRYPT × 7컬럼</h4>
+            <p>단순 값 바인딩보다 statement 텍스트가 훨씬 무거워진다. 같은 건수라도 row당 payload가 크다.</p>
+            <span class="process-badge">단순 건수가 아닌 row × payload 크기로 봐야 한다</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 8: Codex 활용 프로세스 ===== -->
+<section class="slide" id="s8" data-slide="8">
+  <div class="slide-tag"><span class="num">07</span> Codex 활용 프로세스</div>
+  <h2>AI는 <span class="accent">가속기</span>다<br><span class="dim">품질은 검증이 결정한다</span></h2>
+
+  <div class="two-col">
+    <div>
+      <div style="margin-bottom:20px">
+        <div style="font-size:13px; color:var(--text2); line-height:1.8; margin-bottom:16px">
+          핵심 메시지: "AI가 대신 개발하는 구조"가 아니라,
+          <strong style="color:var(--text)">문서와 검증 중심 프로세스를 더 빠르게 반복하게 해주는 구조</strong>다.
+        </div>
+        <div class="process" style="gap:0">
+          <div class="process-item"><div class="process-num">1</div><div class="process-body"><h4>기획서 → PRD 문서화</h4><p>/docs 하위에 추가 후 Codex에 PRD 작성 요청</p></div></div>
+          <div class="process-item"><div class="process-num">2</div><div class="process-body"><h4>PRD 이중 체크 <span style="color:var(--accent); font-size:12px">👤 개발자</span></h4><p>문서 기반 설계·검증 포인트·테스트케이스 생성</p></div></div>
+          <div class="process-item"><div class="process-num">3</div><div class="process-body"><h4>구현 + 컴파일 오류 확인</h4><p>Codex가 전부 진행</p></div></div>
+          <div class="process-item"><div class="process-num">4</div><div class="process-body"><h4>로컬 실행 기능 검증 <span style="color:var(--accent); font-size:12px">👤 개발자</span></h4><p>문제·누락 발견 시 직접 수정 또는 Codex에 수정 요청</p></div></div>
+          <div class="process-item"><div class="process-num">5</div><div class="process-body"><h4>테스트코드 생성 + PR + AI 리뷰</h4><p>테스트케이스 컴파일 + 전부 통과 확인</p></div></div>
+        </div>
+      </div>
+    </div>
+
+    <div>
+      <div style="margin-bottom:16px">
+        <div class="slide-tag" style="margin-bottom:12px">규칙 체계</div>
+        <div class="card" style="background:rgba(255,200,87,0.05); border-color:rgba(255,200,87,0.2); margin-bottom:12px">
+          <div style="font-size:13px; color:var(--text2); line-height:1.8">
+            <strong style="color:var(--accent2)">통제 지점 (개발자가 직접 확인)</strong><br>
+            PRD 이중 체크 → 로컬 기능 검증 → PRD/설계 최신화<br>
+            <span style="font-size:12px; color:var(--muted)">이 3단계가 있어야 AI 산출물이 누적 자산이 됩니다.</span>
+          </div>
+        </div>
+        <div class="rule-stack">
+          <div class="rule-grid">
+            <div class="photo-shot">
+              <img src="./codex-global-rule.png" alt="Codex 글로벌 규칙 화면">
+              <div class="caption">
+                <div class="caption-title">📸 SCREENSHOT GUIDE #4</div>
+                <div class="caption-desc">글로벌 공통 규칙</div>
+              </div>
+            </div>
+            <div class="photo-shot">
+              <img src="./프로젝트-루트-Agent-rule.png" alt="프로젝트 AGENTS 규칙 화면">
+              <div class="caption">
+                <div class="caption-title">📸 SCREENSHOT GUIDE #5</div>
+                <div class="caption-desc">프로젝트별 규칙</div>
+              </div>
+            </div>
+          </div>
+          <div class="rule-note">
+            글로벌 규칙으로 기본 품질 기준을 맞추고, 프로젝트 규칙으로 팀 컨벤션과 도메인 제약을 우선 적용하는 구조입니다.
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="asset-showcase">
+    <h2 style="font-size:clamp(24px, 3vw, 40px); margin-bottom:20px">
+      <span class="accent">누적된</span> 문서 자산
+    </h2>
+    <div class="card" style="margin-bottom:18px; background:rgba(255,255,255,0.02)">
+      <div style="font-size:13px; color:var(--text2); line-height:1.8">
+        현재는 문서 자산을 로컬 환경에서 우선 관리하고 있습니다.<br>
+        우선 지금까지 작업한 최종 산출물은 <code>md</code> 파일 형태로 정리해 Jira 이슈별로 업로드하여 관리할 예정입니다.<br>
+        다만 규칙 문서와 도메인 데이터까지 저장소 안에서 함께 관리할지는 아직 검토 중입니다.
+      </div>
+    </div>
+    <div class="two-col">
+      <div class="photo-shot">
+        <img src="./AI산출물-1.png" alt="누적된 문서 자산 첫 번째 화면">
+        <div class="caption">
+          <div class="caption-title">문서 자산 #1</div>
+          <div class="caption-desc">엑셀발주등록 관련 분석 문서들이 한 위치에 누적된 모습. 이력이 남고 다음 작업의 입력값이 됩니다.</div>
+        </div>
+      </div>
+      <div class="photo-shot">
+        <img src="./AI산출물-2.png" alt="누적된 문서 자산 두 번째 화면">
+        <div class="caption">
+          <div class="caption-title">문서 자산 #2</div>
+          <div class="caption-desc">다른 도메인에서도 같은 방식으로 설계, 분석, 테스트 전략이 누적됩니다. 이게 팀 자산화의 핵심입니다.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 9: 결론 ===== -->
+<section class="slide" id="s9" data-slide="9">
+  <div class="slide-tag"><span class="num">08</span> 결론</div>
+  <h2>핵심 <span class="accent">메시지</span></h2>
+
+  <div style="margin-bottom:40px">
+    <div class="conclusion-text">
+      "chunking 하나가 아니라,<br>
+      <span>세션이 붙잡는 최대 작업량 상한 + flush + close</span><br>
+      세 가지 조합이 피크 메모리를 낮췄다"
+    </div>
+  </div>
+
+  <div class="three-col" style="margin-bottom:32px">
+    <div class="card accent-top">
+      <div style="font-family:'JetBrains Mono',monospace; font-size:11px; color:var(--accent); margin-bottom:8px; letter-spacing:0.08em">말하지 말 것</div>
+      <div style="font-size:13px; color:var(--red); line-height:1.8">
+        ❌ "GC가 메모리를 바로 해제한다"<br>
+        ❌ "BATCH가 무조건 메모리 효율적"<br>
+        ❌ "clearCache()가 핵심"<br>
+        ❌ "flushStatements()에서 batch 시작"
+      </div>
+    </div>
+    <div class="card green-top">
+      <div style="font-family:'JetBrains Mono',monospace; font-size:11px; color:var(--green); margin-bottom:8px; letter-spacing:0.08em">정확한 표현</div>
+      <div style="font-size:13px; color:var(--text2); line-height:1.8">
+        ✓ "참조 생명주기를 짧게 만들어 GC가 회수 가능한 상태를 더 자주 만든다"<br>
+        ✓ "generated key 제약이 없고 flush 경계를 잘 설계했을 때"
+      </div>
+    </div>
+    <div class="card blue-top">
+      <div style="font-family:'JetBrains Mono',monospace; font-size:11px; color:var(--blue); margin-bottom:8px; letter-spacing:0.08em">이후 할 것</div>
+      <ul class="styled" style="font-size:13px">
+        <li>BatchInsertExecutorTest 작성</li>
+        <li>SIMPLE/BATCH 비교 실험 코드</li>
+        <li>발표용 실험 그래프 생성</li>
+        <li>테스트 로그 기반 타임라인</li>
+      </ul>
+    </div>
+  </div>
+
+  <div style="border-top:1px solid var(--border); padding-top:24px; display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:24px">
+    <div>
+      <div style="font-family:'JetBrains Mono',monospace; font-size:11px; color:var(--muted); text-transform:uppercase; letter-spacing:0.08em; margin-bottom:8px">한 줄 결론</div>
+      <div style="font-size:16px; color:var(--text); font-weight:500; line-height:1.6; max-width:600px">
+        BatchInsertExecutor의 핵심은 "대량 insert를 빠르게 했다"보다,<br>
+        <span style="color:var(--accent)">"MyBatis 세션이 내부적으로 붙잡는 batch 상태의 생명주기를<br>chunk 단위로 잘라 피크 메모리를 낮춘 것"</span>에 있다.
+      </div>
+    </div>
+    <div style="text-align:right">
+      <div style="font-family:'JetBrains Mono',monospace; font-size:11px; color:var(--muted); margin-bottom:4px">분석 기준</div>
+      <div style="font-family:'JetBrains Mono',monospace; font-size:12px; color:var(--text2)">MyBatis 3.5.17</div>
+      <div style="font-family:'JetBrains Mono',monospace; font-size:12px; color:var(--text2)">바이트코드 실측 기반</div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <span>BatchInsertExecutor DeepDive — 분기 기술공유</span>
+  <span>MyBatis 3.5.17 · 바이트코드 기반 분석</span>
+</footer>
+
+<script>
+  // Intersection Observer for slide reveal
+  const slides = document.querySelectorAll('.slide');
+  const navDots = document.getElementById('navDots');
+  const counter = document.getElementById('slideCounter');
+  const total = slides.length;
+
+  // Create nav dots
+  slides.forEach((slide, i) => {
+    const dot = document.createElement('div');
+    dot.className = 'nav-dot' + (i === 0 ? ' active' : '');
+    dot.title = `슬라이드 ${i+1}`;
+    dot.addEventListener('click', () => slide.scrollIntoView({ behavior: 'smooth' }));
+    navDots.appendChild(dot);
+  });
+
+  const io = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        entry.target.classList.add('visible');
+        const idx = Array.from(slides).indexOf(entry.target);
+        document.querySelectorAll('.nav-dot').forEach((d, i) => d.classList.toggle('active', i === idx));
+        counter.textContent = String(idx + 1).padStart(2, '0') + ' / ' + String(total).padStart(2, '0');
+
+        // trigger memory bars when s6 visible
+        if (entry.target.id === 's6') {
+          setTimeout(() => {
+            const barSimple = document.getElementById('barSimple');
+            const barBatch = document.getElementById('barBatch');
+            if (barSimple) barSimple.style.width = '100%';
+            if (barBatch) barBatch.style.width = '11.5%';
+          }, 300);
+        }
+      }
+    });
+  }, { threshold: 0.25 });
+
+  slides.forEach(s => io.observe(s));
+</script>
+</body>
+</html>
