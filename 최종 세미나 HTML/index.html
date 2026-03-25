@@ -1322,8 +1322,8 @@ public class BatchInsertExecutor {
   </div>
 </section>
 
-<section class="slide" id="s6" data-slide="6">
-  <div class="slide-tag"><span class="num">05</span> 코드 구조 해부</div>
+<section class="slide" id="s7" data-slide="7">
+  <div class="slide-tag"><span class="num">06</span> 코드 구조 해부</div>
   <h2><span class="accent">BatchInsertExecutor</span><br>핵심 흐름</h2>
   <div class="two-col">
     <div>
@@ -1383,8 +1383,8 @@ public class BatchInsertExecutor {
   </div>
 </section>
 
-<section class="slide" id="s7" data-slide="7">
-  <div class="slide-tag"><span class="num">06</span> BatchExecutor 내부</div>
+<section class="slide" id="s8" data-slide="8">
+  <div class="slide-tag"><span class="num">07</span> BatchExecutor 내부</div>
   <h2>누적의 시작점은<br><span class="accent">doUpdate()</span>다</h2>
   <div class="two-col">
     <div>
@@ -1431,8 +1431,8 @@ public class BatchInsertExecutor {
   </div>
 </section>
 
-<section class="slide" id="s8" data-slide="8">
-  <div class="slide-tag"><span class="num">07</span> API 역할 분리</div>
+<section class="slide" id="s9" data-slide="9">
+  <div class="slide-tag"><span class="num">08</span> API 역할 분리</div>
   <h2><code style="font-size:0.6em">flush</code> · <code style="font-size:0.6em">clearCache</code> · <code style="font-size:0.6em">close</code><br><span class="accent">역할이 다르다</span></h2>
   <div class="three-col" style="margin-bottom:32px">
     <div class="card accent-top">
@@ -1516,8 +1516,8 @@ public class BatchInsertExecutor {
   </div>
 </section>
 
-<section class="slide" id="s9" data-slide="9">
-  <div class="slide-tag"><span class="num">08</span> 전략 비교</div>
+<section class="slide" id="s10" data-slide="10">
+  <div class="slide-tag"><span class="num">09</span> 전략 비교</div>
   <h2><span class="dim">SIMPLE</span> vs <span class="accent">BATCH</span></h2>
   <div class="two-col">
     <div>
@@ -1554,8 +1554,8 @@ public class BatchInsertExecutor {
   </div>
 </section>
 
-<section class="slide" id="s12" data-slide="12">
-  <div class="slide-tag"><span class="num">09</span> 결론</div>
+<section class="slide" id="s11" data-slide="11">
+  <div class="slide-tag"><span class="num">10</span> 결론</div>
   <h2>핵심 <span class="accent">메시지</span></h2>
   <div class="conclusion-text">
     "chunking 하나가 아니라,<br>
@@ -1605,7 +1605,7 @@ public class BatchInsertExecutor {
   </div>
 </section>
 
-<section class="slide title-only-slide" id="s13" data-slide="13">
+<section class="slide title-only-slide" id="s12" data-slide="12">
   <div class="eyebrow">AI Strategy · Make Preview</div>
   <h2><span class="accent">AI 활용 전략</span> 및<br>MAKE 맛보기</h2>
   <p class="title-only-note">
@@ -1614,8 +1614,8 @@ public class BatchInsertExecutor {
   </p>
 </section>
 
-<section class="slide" id="s10" data-slide="10">
-  <div class="slide-tag"><span class="num">10</span> Codex 활용 프로세스</div>
+<section class="slide" id="s13" data-slide="13">
+  <div class="slide-tag"><span class="num">11</span> Codex 활용 프로세스</div>
   <h2>AI는 <span class="accent">가속기</span>다<br><span class="dim">품질은 검증이 결정한다</span></h2>
   <div class="two-col">
     <div>
@@ -1658,8 +1658,8 @@ public class BatchInsertExecutor {
   </div>
 </section>
 
-<section class="slide" id="s11" data-slide="11">
-  <div class="slide-tag"><span class="num">11</span> 문서 자산</div>
+<section class="slide" id="s14" data-slide="14">
+  <div class="slide-tag"><span class="num">12</span> 문서 자산</div>
   <h2><span class="accent">누적된</span> 문서 자산</h2>
   <div class="card" style="margin-bottom:18px; background:rgba(255,255,255,0.02)">
     <div style="font-size:13px; color:var(--text2); line-height:1.8">
@@ -1686,8 +1686,8 @@ public class BatchInsertExecutor {
   </div>
 </section>
 
-<section class="slide" id="s14" data-slide="14">
-  <div class="slide-tag"><span class="num">12</span> MAKE 맛보기</div>
+<section class="slide" id="s15" data-slide="15">
+  <div class="slide-tag"><span class="num">13</span> MAKE 맛보기</div>
   <h2><span class="accent">Loveable</span>로 만든<br>노코드 개발 산출물 공유</h2>
   <div class="two-col">
     <div class="card accent-top">
@@ -1737,7 +1737,7 @@ public class BatchInsertExecutor {
         document.querySelectorAll('.nav-dot').forEach((d, i) => d.classList.toggle('active', i === idx));
         counter.textContent = String(idx + 1).padStart(2, '0') + ' / ' + String(total).padStart(2, '0');
 
-        if (entry.target.id === 's9') {
+        if (entry.target.id === 's10') {
           setTimeout(() => {
             const barSimple = document.getElementById('barSimple');
             const barBatch = document.getElementById('barBatch');
